@@ -24,7 +24,7 @@ class ScrapeRequest(BaseModel):
 # -------------------- Chrome Driver --------------------
 def get_chrome_driver():
     options = Options()
-    #options.add_argument("--headless=new")
+    # options.add_argument("--headless=new")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--window-size=1920,1080")
@@ -42,6 +42,36 @@ def identify_website(url: str):
     return None
 
 # -------------------- Scrapers --------------------
+class SwiggyDiscountCouponExtractor:
+    def __init__(self, driver):
+        self.driver = driver
+
+    def extract_discounts_and_coupons(self):
+        discounts = []
+        coupons = []
+
+        # Use XPath to find elements that contain discount-related keywords
+        try:
+            discount_elements = self.driver.find_elements(By.CLASS_NAME,"sc-aXZVg xtIpQ")
+            for el in discount_elements:
+                text = el.text.strip()
+                if text and text not in discounts:
+                    discounts.append(text)
+        except Exception:
+            pass
+
+        try:
+            coupon_elements = self.driver.find_elements(By.CLASS_NAME, 'sc-aXZVg gWEVpb sc-hwdzOV hHZVJN')
+            for el in coupon_elements:
+                text = el.text.strip()
+                if text and text not in coupons:
+                    coupons.append(text)
+        except Exception:
+            pass
+
+        return discounts, coupons
+
+
 def scrape_swiggy(url):
     driver = get_chrome_driver()
     driver.get(url)
@@ -58,6 +88,10 @@ def scrape_swiggy(url):
         restaurant = driver.find_element(By.XPATH, "//span[@class='_2vs3E']").text.strip()
     except NoSuchElementException:
         restaurant = "UnknownRestaurant"
+
+    # Extract discounts and coupons
+    discount_coupon_extractor = SwiggyDiscountCouponExtractor(driver)
+    discounts, coupons = discount_coupon_extractor.extract_discounts_and_coupons()
 
     items = []
     products = driver.find_elements(By.XPATH, "//div[contains(@class, 'QMaYM')]")
@@ -89,12 +123,10 @@ def scrape_swiggy(url):
             "name": name,
             "MRP": mrp,
             "Discounted Price": discounted_price,
-            "Offer": "",
-            "code": ""
         })
 
     driver.quit()
-    return items, restaurant, city
+    return items, restaurant, city, discounts, coupons
 
 def scrape_zomato(url):
     driver = get_chrome_driver()
@@ -126,20 +158,26 @@ def scrape_zomato(url):
         try:
             price = el.find_element(By.XPATH, ".//span[@class= 'sc-17hyc2s-1 cCiQWA']").text.strip()
             name = el.find_element(By.XPATH, ".//h4[@class = 'sc-cGCqpu chKhYc']").text.strip()
-            items.append({"name": name, "price": price})
+            items.append({"name": name, "MRP": price})
         except NoSuchElementException:
             continue
 
     driver.quit()
-    return items, restaurant, city
-
+    return items, restaurant, city, [], []  # No discounts or coupons for Zomato
 
 def scrape_mystore(url):
     driver = get_chrome_driver()
     driver.get(url)
     time.sleep(5)
     soup = BeautifulSoup(driver.page_source, "html.parser")
-    driver.quit()
+
+    # Extract restaurant name
+    restaurant_tag = soup.select_one("h1.catalog-title.m-0.fw-semibold.h2")
+    restaurant = restaurant_tag.text.strip() if restaurant_tag else "UnknownRestaurant"
+
+    # Extract city name
+    city_tag = soup.select_one("div.seller-caption-top")
+    city = city_tag.text.strip() if city_tag else "UnknownCity"
 
     items = []
     cards = soup.select("div.product-caption-top.mt-auto")
@@ -153,12 +191,15 @@ def scrape_mystore(url):
 
         items.append({
             "name": name.text.strip() if name else "N/A",
-            "price": price_new.text.strip() if price_new else "N/A",
-            "old_price": price_old.text.strip() if price_old else "N/A",
+            "MRP": price_old.text.strip() if price_old else "N/A",
+            "Discounted Price": price_new.text.strip() if price_new else "N/A",
             "discount": discount.text.strip() if discount else "N/A",
             "seller": seller.text.strip() if seller else "N/A"
-        })
-    return items
+            })
+
+
+    driver.quit()
+    return items, restaurant, city, [], []  # No coupons/discounts currently extracted for MyStore
 
 # -------------------- Helpers --------------------
 def extract_restaurant_and_city(url):
@@ -177,7 +218,7 @@ def extract_restaurant_and_city(url):
         restaurant = parts[2].split('.')[0]
     return restaurant.strip('_'), city.strip('_')
 
-def write_csv(data, platform, restaurant, city):
+def write_csv(data, platform, restaurant, city, discounts, coupons):
     city = city.replace(" ", "_").strip()
     restaurant = restaurant.replace(" ", "_").strip()
     platform = platform.lower().strip()
@@ -185,16 +226,46 @@ def write_csv(data, platform, restaurant, city):
     folder_path = os.path.join("data", city, restaurant)
     os.makedirs(folder_path, exist_ok=True)
 
-    filename = f"{restaurant}_{city}_{platform}.csv"
-    full_path = os.path.join(folder_path, filename)
+    # ---------------- Write item data ----------------
+    items_filename = f"{restaurant}_{city}_{platform}_items.csv"
+    items_path = os.path.join(folder_path, items_filename)
 
-    keys = data[0].keys()
-    with open(full_path, 'w', newline='', encoding='utf-8') as f:
-        writer = csv.DictWriter(f, fieldnames=keys)
-        writer.writeheader()
-        writer.writerows(data)
+    with open(items_path, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
 
-    return full_path
+        if data:
+            headers = list(data[0].keys())
+            writer.writerow(headers)
+            for item in data:
+                writer.writerow([item.get(h, "N/A") for h in headers])
+        else:
+            writer.writerow(["No items found."])
+
+    # ---------------- Write discounts/coupons if Swiggy ----------------
+    offers_path = None
+    if platform == "swiggy":
+        offers_filename = f"{restaurant}_{city}_{platform}_offers.csv"
+        offers_path = os.path.join(folder_path, offers_filename)
+
+        with open(offers_path, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(["Discounts"])
+            if discounts:
+                for discount in discounts:
+                    writer.writerow([discount])
+            else:
+                writer.writerow(["No Discounts"])
+
+            writer.writerow([])  # Blank line between sections
+            writer.writerow(["Coupons"])
+            if coupons:
+                for coupon in coupons:
+                    writer.writerow([coupon])
+            else:
+                writer.writerow(["No Coupons"])
+
+    return items_path, offers_path
+
 
 # -------------------- Endpoints --------------------
 @app.post("/test")
@@ -207,26 +278,28 @@ def scrape_endpoint(request: ScrapeRequest):
     platform = identify_website(url)
 
     if platform == "swiggy":
-        data, restaurant, city = scrape_swiggy(url)
+        data, restaurant, city, discounts, coupons = scrape_swiggy(url)
     elif platform == "zomato":
-        data, restaurant, city = scrape_zomato(url)
+        data, restaurant, city, discounts, coupons = scrape_zomato(url)
     elif platform == "mystore":
-        data = scrape_mystore(url)
-        restaurant, city = extract_restaurant_and_city(url)
+        data, restaurant, city, discounts, coupons = scrape_mystore(url)
     else:
         raise HTTPException(status_code=400, detail="Unsupported platform")
 
     if not data:
         raise HTTPException(status_code=404, detail="No data found on the page.")
 
-    csv_path = write_csv(data, platform, restaurant, city)
+    items_path, offers_path = write_csv(data, platform, restaurant, city, discounts, coupons)
+
 
     return {
-        "status": "success",
-        "platform": platform,
-        "restaurant": restaurant,
-        "city": city,
-        "csv_path": csv_path,
-        "item_count": len(data),
-        "data": data
-    }
+    "status": "success",
+    "platform": platform,
+    "restaurant": restaurant,
+    "city": city,
+    "item_count": len(data),
+    "items_csv": items_path,
+    "offers_csv": offers_path if platform == "swiggy" else None,
+    "data": data
+}
+
