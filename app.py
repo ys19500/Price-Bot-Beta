@@ -42,34 +42,39 @@ def identify_website(url: str):
     return None
 
 # -------------------- Scrapers --------------------
+
 class SwiggyDiscountCouponExtractor:
     def __init__(self, driver):
         self.driver = driver
 
     def extract_discounts_and_coupons(self):
-        discounts = []
-        coupons = []
-
-        # Use XPath to find elements that contain discount-related keywords
-        try:
-            discount_elements = self.driver.find_elements(By.CLASS_NAME,"sc-aXZVg xtIpQ")
-            for el in discount_elements:
-                text = el.text.strip()
-                if text and text not in discounts:
-                    discounts.append(text)
-        except Exception:
-            pass
+        discounts, coupons = [], []
 
         try:
-            coupon_elements = self.driver.find_elements(By.CLASS_NAME, 'sc-aXZVg gWEVpb sc-hwdzOV hHZVJN')
-            for el in coupon_elements:
-                text = el.text.strip()
-                if text and text not in coupons:
-                    coupons.append(text)
-        except Exception:
-            pass
+            print("Extracting visible offers without clicking...")
+
+            cards = self.driver.find_elements(By.XPATH, "//div[@data-testid and contains(@data-testid, 'offer-card-container')]")
+            print(f"Found {len(cards)} offer cards.")
+
+            for card in cards:
+                heading = card.find_element(By.XPATH, ".//div[contains(@class, 'hsuIwO')]").text.strip()
+                subtext = card.find_element(By.XPATH, ".//div[contains(@class, 'foYDCM')]").text.strip()
+
+                if heading and heading not in discounts:
+                    discounts.append(heading)
+
+                if subtext and subtext not in coupons:
+                    coupons.append(subtext)
+
+        except Exception as e:
+            print("Error during coupon extraction:", repr(e))
+            with open("swiggy_debug.html", "w", encoding="utf-8") as f:
+                f.write(self.driver.page_source)
+            print("Saved page for debugging.")
 
         return discounts, coupons
+
+
 
 
 def scrape_swiggy(url):
