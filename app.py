@@ -79,26 +79,33 @@ class SwiggyDiscountCouponExtractor:
 
                     print(f"Clicked card {i+1}")
 
-                    WebDriverWait(self.driver, 10).until(
-                        EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'igolxO')]"))
-                    )
-                    time.sleep(0.5)
+                    try:
+                        WebDriverWait(self.driver, 10).until(
+                            EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'igolxO')]"))
+                        )
+                        time.sleep(0.5)
 
-                    heading_elements = self.driver.find_elements(By.XPATH, "//div[contains(@class, 'xtIpQ')]")
-                    for el in heading_elements:
-                        text = el.text.strip()
-                        if text and text not in discounts:
-                            discounts.append(text)
+                        heading_elements = self.driver.find_elements(By.XPATH, "//div[contains(@class, 'xtIpQ')]")
+                        for el in heading_elements:
+                            text = el.text.strip()
+                            if text and text not in discounts:
+                                discounts.append(text)
 
-                    coupon_elements = self.driver.find_elements(By.XPATH, "//div[contains(@class, 'hHZVJN')]")
-                    for el in coupon_elements:
-                        text = el.text.strip()
-                        if text and text not in coupons:
-                            coupons.append(text)
+                        coupon_elements = self.driver.find_elements(By.XPATH, "//div[contains(@class, 'hHZVJN')]")
+                        for el in coupon_elements:
+                            text = el.text.strip()
+                            if text and text not in coupons:
+                                coupons.append(text)
 
-                    close_btn = self.driver.find_element(By.XPATH, "//div[contains(@class, 'dnGnZy') and @aria-hidden='true']")
-                    close_btn.click()
-                    time.sleep(0.5)
+                        close_btn = self.driver.find_element(By.XPATH, "//div[contains(@class, 'dnGnZy') and @aria-hidden='true']")
+                        close_btn.click()
+                        time.sleep(0.5)
+                    except TimeoutException:
+                        print(f"Timeout waiting for modal content on card {i+1}.")
+                        close_btn = self.driver.find_element(By.XPATH, "//div[contains(@class, 'dnGnZy') and @aria-hidden='true']")
+                        close_btn.click()
+                        time.sleep(0.5)
+
 
                 except Exception as e:
                     print(f"Error processing card {i+1}: {repr(e)}")
@@ -108,12 +115,8 @@ class SwiggyDiscountCouponExtractor:
 
         except Exception as e:
             print("Error during overall coupon extraction:", repr(e))
-            with open("swiggy_debug.html", "w", encoding="utf-8") as f:
-                f.write(self.driver.page_source)
-            print("Saved page for debugging.")
 
-        return discounts, coupons 
-
+        return discounts, coupons
 
 
 
