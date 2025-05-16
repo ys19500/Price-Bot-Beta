@@ -109,9 +109,7 @@ class SwiggyDiscountCouponExtractor:
 
                 except Exception as e:
                     print(f"Error processing card {i+1}: {repr(e)}")
-                    with open(f"swiggy_debug_card_{i+1}.html", "w", encoding="utf-8") as f:
-                        f.write(self.driver.page_source)
-                    continue
+                    
 
         except Exception as e:
             print("Error during overall coupon extraction:", repr(e))
@@ -353,4 +351,3 @@ def scrape_endpoint(request: ScrapeRequest):
     "offers_csv": offers_path if platform == "swiggy" else None,
     "data": data
 }
-
