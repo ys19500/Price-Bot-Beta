@@ -3,7 +3,7 @@ import requests
 import pandas as pd
 
 # --------- API Configuration ----------
-API_BASE_URL = "http://localhost:8000/scrape"
+API_BASE_URL = "http://backend:8000/scrape"
 
 
 # --------- Streamlit UI ----------
