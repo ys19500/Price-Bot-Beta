@@ -20,7 +20,7 @@ from bs4 import BeautifulSoup
 app = FastAPI()
 
 # -------------------- Chrome Driver Path --------------------
-CHROMEDRIVER_PATH = "/opt/homebrew/bin/chromedriver"  # Update if necessary
+CHROMEDRIVER_PATH = "/opt/homebrew/bin/chromedriver"  
 
 # -------------------- Request Schema --------------------
 class ScrapeRequest(BaseModel):
@@ -136,7 +136,7 @@ def scrape_swiggy(url):
     except NoSuchElementException:
         restaurant = "UnknownRestaurant"
 
-    # 🥇 FIRST: Scrape product items and prices
+    
     items = []
     products = driver.find_elements(By.XPATH, "//div[contains(@class, 'QMaYM')]")
     for product in products:
@@ -169,7 +169,7 @@ def scrape_swiggy(url):
             "Discounted Price": discounted_price,
         })
 
-    # 🥈 THEN: Extract discounts and coupons
+    
     discount_coupon_extractor = SwiggyDiscountCouponExtractor(driver)
     discounts, coupons = discount_coupon_extractor.extract_discounts_and_coupons()
 
@@ -182,7 +182,6 @@ def scrape_zomato(url):
     driver.get(url)
 
     try:
-        # Wait up to 15 seconds for at least one menu item container to load
         WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.XPATH, "//div[@class= 'sc-nUItV gZWJDT']"))
         )
