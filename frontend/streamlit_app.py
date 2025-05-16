@@ -3,7 +3,8 @@ import requests
 import pandas as pd
 
 # --------- API Configuration ----------
-API_BASE_URL = "https://your-api-domain.com"  # Replace with your deployed FastAPI URL
+API_URL = "http://backend:8000/scrape"
+
 
 # --------- Streamlit UI ----------
 st.set_page_config(page_title="Restaurant Scraper", layout="centered")
