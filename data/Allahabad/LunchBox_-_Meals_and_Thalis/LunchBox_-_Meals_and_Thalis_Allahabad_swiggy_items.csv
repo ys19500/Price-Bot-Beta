@@ -1,6 +1,6 @@
 name,MRP,Discounted Price
-Pindi Chole and Chapati Lunchbox,199,N/A
-Mughlai Egg Curry and Chapati Lunchbox,239,N/A
+Rajma and Chawal Lunchbox,199,N/A
+Aloo Paratha and Double Omelette Combo,229,N/A
 Rajma & Rumali Roti Lunchbox,259,179
 Chicken Kheema & Rumali Roti Lunchbox,299,N/A
 Dal Makhani & Rumali Roti Lunchbox,249,N/A
@@ -19,8 +19,8 @@ Rajma Chawal LunchBox,209,N/A
 "Punjabi Thali - Chole, Dal Makhani and Chawal",229,179
 Dal Makhani & Rice Lunchbox,209,179
 "Dal Makhani, Rice Lunchbox with Gulab Jamun (2 pcs)",299,N/A
-Pindi Chole and Chapati Lunchbox,199,N/A
-Mughlai Egg Curry and Chapati Lunchbox,239,N/A
+Rajma and Chawal Lunchbox,199,N/A
+Aloo Paratha and Double Omelette Combo,229,N/A
 Rajma & Rumali Roti Lunchbox,259,179
 Chicken Kheema & Rumali Roti Lunchbox,299,N/A
 Dal Makhani & Rumali Roti Lunchbox,249,N/A
@@ -168,8 +168,7 @@ Mango Cheesecake,199,N/A
 Blueberry Cheesecake,199,N/A
 Choco Chip Brownie,99,N/A
 Walnut Brownie,99,N/A
-Almond Brownie,79,N/A
-Chocolate Cheesecake Slice,199,N/A
+Almond Brownie,59,N/A
 Gujiya - Pack of 2,99,N/A
 Gujiya - Pack of 4,169,N/A
 Rajgira Halwa - 300 gm,199,N/A

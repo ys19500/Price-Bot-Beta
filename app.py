@@ -10,6 +10,11 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import (
+    ElementClickInterceptedException,
+    ElementNotInteractableException,
+    TimeoutException
+)
 from bs4 import BeautifulSoup
 
 app = FastAPI()
@@ -47,32 +52,67 @@ class SwiggyDiscountCouponExtractor:
     def __init__(self, driver):
         self.driver = driver
 
+
     def extract_discounts_and_coupons(self):
         discounts, coupons = [], []
 
         try:
-            print("Extracting visible offers without clicking...")
-
-            cards = self.driver.find_elements(By.XPATH, "//div[@data-testid and contains(@data-testid, 'offer-card-container')]")
+            print("Finding offer cards...")
+            cards = self.driver.find_elements(By.XPATH, "//div[starts-with(@data-testid, 'offer-card-container-')]")
             print(f"Found {len(cards)} offer cards.")
 
-            for card in cards:
-                heading = card.find_element(By.XPATH, ".//div[contains(@class, 'hsuIwO')]").text.strip()
-                subtext = card.find_element(By.XPATH, ".//div[contains(@class, 'foYDCM')]").text.strip()
+            for i in range(len(cards)):
+                try:
+                    cards = self.driver.find_elements(By.XPATH, "//div[starts-with(@data-testid, 'offer-card-container-')]")
+                    card = cards[i]
 
-                if heading and heading not in discounts:
-                    discounts.append(heading)
+                    self.driver.execute_script("arguments[0].scrollIntoView(true);", card)
+                    time.sleep(0.5)
+                    print(f"Card {i+1} text: {card.text.strip()[:80]}")
 
-                if subtext and subtext not in coupons:
-                    coupons.append(subtext)
+
+                    try:
+                        card.click()
+                    except ElementClickInterceptedException:
+                        self.driver.execute_script("arguments[0].click();", card)
+                    time.sleep(2)
+
+                    print(f"Clicked card {i+1}")
+
+                    WebDriverWait(self.driver, 10).until(
+                        EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'igolxO')]"))
+                    )
+                    time.sleep(0.5)
+
+                    heading_elements = self.driver.find_elements(By.XPATH, "//div[contains(@class, 'xtIpQ')]")
+                    for el in heading_elements:
+                        text = el.text.strip()
+                        if text and text not in discounts:
+                            discounts.append(text)
+
+                    coupon_elements = self.driver.find_elements(By.XPATH, "//div[contains(@class, 'hHZVJN')]")
+                    for el in coupon_elements:
+                        text = el.text.strip()
+                        if text and text not in coupons:
+                            coupons.append(text)
+
+                    close_btn = self.driver.find_element(By.XPATH, "//div[contains(@class, 'dnGnZy') and @aria-hidden='true']")
+                    close_btn.click()
+                    time.sleep(0.5)
+
+                except Exception as e:
+                    print(f"Error processing card {i+1}: {repr(e)}")
+                    with open(f"swiggy_debug_card_{i+1}.html", "w", encoding="utf-8") as f:
+                        f.write(self.driver.page_source)
+                    continue
 
         except Exception as e:
-            print("Error during coupon extraction:", repr(e))
+            print("Error during overall coupon extraction:", repr(e))
             with open("swiggy_debug.html", "w", encoding="utf-8") as f:
                 f.write(self.driver.page_source)
             print("Saved page for debugging.")
 
-        return discounts, coupons
+        return discounts, coupons 
 
 
 
@@ -80,6 +120,7 @@ class SwiggyDiscountCouponExtractor:
 def scrape_swiggy(url):
     driver = get_chrome_driver()
     driver.get(url)
+
     WebDriverWait(driver, 10).until(
         EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'QMaYM')]"))
     )
@@ -94,10 +135,7 @@ def scrape_swiggy(url):
     except NoSuchElementException:
         restaurant = "UnknownRestaurant"
 
-    # Extract discounts and coupons
-    discount_coupon_extractor = SwiggyDiscountCouponExtractor(driver)
-    discounts, coupons = discount_coupon_extractor.extract_discounts_and_coupons()
-
+    # 🥇 FIRST: Scrape product items and prices
     items = []
     products = driver.find_elements(By.XPATH, "//div[contains(@class, 'QMaYM')]")
     for product in products:
@@ -130,8 +168,13 @@ def scrape_swiggy(url):
             "Discounted Price": discounted_price,
         })
 
+    # 🥈 THEN: Extract discounts and coupons
+    discount_coupon_extractor = SwiggyDiscountCouponExtractor(driver)
+    discounts, coupons = discount_coupon_extractor.extract_discounts_and_coupons()
+
     driver.quit()
     return items, restaurant, city, discounts, coupons
+
 
 def scrape_zomato(url):
     driver = get_chrome_driver()
