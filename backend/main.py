@@ -192,7 +192,7 @@ def scrape_zomato(url):
     driver.get(url)
 
     try:
-        WebDriverWait(driver, 10).until(
+        WebDriverWait(driver, 100).until(
             EC.presence_of_element_located((By.XPATH, "//div[@class= 'sc-nUItV gZWJDT']"))
         )
     except Exception:
