@@ -2,28 +2,34 @@ version: '3.9'
 
 services:
   frontend:
-    build: frontend
+    build:
+      context: ./frontend
     ports:
-      - 8501:8501
+      - "8501:8501"
     depends_on:
       - backend
     volumes:
-      - ./frontend:/Rebel_Assignment
+      - ./frontend:/app
     restart: always
     networks:
       - Rebel_Assignment
     container_name: frontend
 
   backend:
-    build: backend
+    build:
+      context: ./backend
     ports:
-      - 8000:8000
+      - "8000:8000"
     volumes:
       - ./backend:/Rebel_Assignment
+      - ./data:/Rebel_Assignment/data
     restart: always
     networks:
       - Rebel_Assignment
     container_name: backend
+    environment:
+      - CHROME_BIN=/usr/bin/chromium
+      - CHROMEDRIVER_PATH=/usr/bin/chromedriver
 
 networks:
   Rebel_Assignment:

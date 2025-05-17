@@ -8,6 +8,4 @@ COPY . /Rebel_Assignment/
 
 EXPOSE 8501
 
-ENTRYPOINT ["streamlit","run"]
-
-CMD ["streamlit_app.py"]
+CMD ["streamlit", "run", "streamlit_app.py"]

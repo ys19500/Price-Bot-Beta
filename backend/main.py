@@ -29,14 +29,27 @@ class ScrapeRequest(BaseModel):
 # -------------------- Chrome Driver --------------------
 def get_chrome_driver():
     options = Options()
-    options.add_argument("--headless")
+    options.add_argument("--headless=new")  # or --headless=chrome if "new" causes issues
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--disable-software-rasterizer")
     options.add_argument("--window-size=1920,1080")
+    options.add_argument("--remote-debugging-port=9222")
+    options.add_argument("--disable-blink-features=AutomationControlled")
+
     options.binary_location = os.getenv("CHROME_BIN", "/usr/bin/chromium")
-    
     service = Service(os.getenv("CHROMEDRIVER_PATH", "/usr/bin/chromedriver"))
+
     return webdriver.Chrome(service=service, options=options)
+
+driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+  "source": """
+    Object.defineProperty(navigator, 'webdriver', {
+      get: () => undefined
+    })
+  """
+})
 
 
 # -------------------- Identify Platform --------------------
@@ -185,12 +198,13 @@ def scrape_zomato(url):
     driver.get(url)
 
     try:
-        WebDriverWait(driver, 15).until(
+        WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.XPATH, "//div[@class= 'sc-nUItV gZWJDT']"))
         )
     except Exception:
         driver.quit()
-        raise HTTPException(status_code=504, detail="Zomato page took too long to load.")
+        raise TimeoutError("Zomato page took too long to load.")
+
 
     city = "UnknownCity"
     restaurant = "UnknownRestaurant"
@@ -323,33 +337,41 @@ def write_csv(data, platform, restaurant, city, discounts, coupons):
 def test_endpoint(request: ScrapeRequest):
     return {"url_received": request.url}
 
+
 @app.post("/scrape")
 def scrape_endpoint(request: ScrapeRequest):
-    url = request.url
+    url = request.url.strip()
     platform = identify_website(url)
 
-    if platform == "swiggy":
-        data, restaurant, city, discounts, coupons = scrape_swiggy(url)
-    elif platform == "zomato":
-        data, restaurant, city, discounts, coupons = scrape_zomato(url)
-    elif platform == "mystore":
-        data, restaurant, city, discounts, coupons = scrape_mystore(url)
-    else:
-        raise HTTPException(status_code=400, detail="Unsupported platform")
+    if not platform:
+        raise HTTPException(status_code=400, detail="Unsupported or invalid platform URL")
 
-    if not data:
-        raise HTTPException(status_code=404, detail="No data found on the page.")
-
+    try:
+        if platform == "swiggy":
+            data, restaurant, city, discounts, coupons = scrape_swiggy(url)
+        elif platform == "zomato":
+            data, restaurant, city, discounts, coupons = scrape_zomato(url)
+        elif platform == "mystore":
+            data, restaurant, city, discounts, coupons = scrape_mystore(url)
+    except TimeoutError as te:
+        raise HTTPException(status_code=504, detail=str(te))
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Scraping failed: {str(e)}")
+    
     items_path, offers_path = write_csv(data, platform, restaurant, city, discounts, coupons)
 
 
+
     return {
-    "status": "success",
-    "platform": platform,
-    "restaurant": restaurant,
-    "city": city,
-    "item_count": len(data),
-    "items_csv": items_path,
-    "offers_csv": offers_path if platform == "swiggy" else None,
-    "data": data
-}
+        "status": "success",
+        "platform": platform,
+        "restaurant": restaurant,
+        "city": city,
+        "item_count": len(data),
+        "items_csv": items_path,
+        "offers_csv": offers_path if platform == "swiggy" else None,
+        "data": data
+    }
+
