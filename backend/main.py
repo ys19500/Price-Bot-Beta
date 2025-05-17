@@ -1,11 +1,7 @@
 import os
 import csv
 import time
-import asyncio
-
-
 from fastapi import FastAPI, HTTPException
-from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -41,6 +37,7 @@ def get_chrome_driver():
     
     service = Service(os.getenv("CHROMEDRIVER_PATH", "/usr/bin/chromedriver"))
     return webdriver.Chrome(service=service, options=options)
+
 
 # -------------------- Identify Platform --------------------
 def identify_website(url: str):
@@ -322,52 +319,37 @@ def write_csv(data, platform, restaurant, city, discounts, coupons):
 
 
 # -------------------- Endpoints --------------------
-
-
-
 @app.post("/test")
-async def test_endpoint(request: ScrapeRequest):
+def test_endpoint(request: ScrapeRequest):
     return {"url_received": request.url}
 
 @app.post("/scrape")
-async def scrape_endpoint(request: ScrapeRequest):
+def scrape_endpoint(request: ScrapeRequest):
     url = request.url
     platform = identify_website(url)
 
-    try:
-        if platform == "swiggy":
-            data, restaurant, city, discounts, coupons = await asyncio.wait_for(
-                run_in_threadpool(scrape_swiggy, url), timeout=30
-            )
-        elif platform == "zomato":
-            data, restaurant, city, discounts, coupons = await asyncio.wait_for(
-                run_in_threadpool(scrape_zomato, url), timeout=30
-            )
-        elif platform == "mystore":
-            data, restaurant, city, discounts, coupons = await asyncio.wait_for(
-                run_in_threadpool(scrape_mystore, url), timeout=30
-            )
-        else:
-            raise HTTPException(status_code=400, detail="Unsupported platform")
-
-    except asyncio.TimeoutError:
-        raise HTTPException(status_code=504, detail="Scraping timed out")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Scraping error: {str(e)}")
+    if platform == "swiggy":
+        data, restaurant, city, discounts, coupons = scrape_swiggy(url)
+    elif platform == "zomato":
+        data, restaurant, city, discounts, coupons = scrape_zomato(url)
+    elif platform == "mystore":
+        data, restaurant, city, discounts, coupons = scrape_mystore(url)
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported platform")
 
     if not data:
         raise HTTPException(status_code=404, detail="No data found on the page.")
 
     items_path, offers_path = write_csv(data, platform, restaurant, city, discounts, coupons)
 
-    return {
-        "status": "success",
-        "platform": platform,
-        "restaurant": restaurant,
-        "city": city,
-        "item_count": len(data),
-        "items_csv": items_path,
-        "offers_csv": offers_path if platform == "swiggy" else None,
-        "data": data
-    }
 
+    return {
+    "status": "success",
+    "platform": platform,
+    "restaurant": restaurant,
+    "city": city,
+    "item_count": len(data),
+    "items_csv": items_path,
+    "offers_csv": offers_path if platform == "swiggy" else None,
+    "data": data
+}
