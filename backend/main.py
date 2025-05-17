@@ -43,13 +43,7 @@ def get_chrome_driver():
 
     return webdriver.Chrome(service=service, options=options)
 
-driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
-  "source": """
-    Object.defineProperty(navigator, 'webdriver', {
-      get: () => undefined
-    })
-  """
-})
+
 
 
 # -------------------- Identify Platform --------------------
