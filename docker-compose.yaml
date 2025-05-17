@@ -1,3 +1,5 @@
+version: '3.9'
+
 services:
   frontend:
     build: frontend
@@ -11,7 +13,6 @@ services:
     networks:
       - Rebel_Assignment
     container_name: frontend
-    command: streamlit run /Rebel_Assignment/streamlit_app.py
 
   backend:
     build: backend
