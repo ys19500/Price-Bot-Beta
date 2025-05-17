@@ -32,14 +32,10 @@ RUN apt-get update && apt-get install -y \
 ENV CHROME_BIN=/usr/bin/chromium
 ENV CHROMEDRIVER_PATH=/usr/bin/chromedriver
 
-# Install Python packages
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
-
-# Expose FastAPI port
+COPY requirements.txt Rebel_Assignment/requirements.txt
+WORKDIR /Rebel_Assignment
+RUN pip install -r requirements.txt
+COPY . /Rebel_Assignment
 EXPOSE 8000
-
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000" ,"--reload"]
