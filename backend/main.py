@@ -319,11 +319,11 @@ def write_csv(data, platform, restaurant, city, discounts, coupons):
 
 # -------------------- Endpoints --------------------
 @app.post("/test")
-def test_endpoint(request: ScrapeRequest):
+async def test_endpoint(request: ScrapeRequest):
     return {"url_received": request.url}
 
 @app.post("/scrape")
-def scrape_endpoint(request: ScrapeRequest):
+async def scrape_endpoint(request: ScrapeRequest):
     url = request.url
     platform = identify_website(url)
 
