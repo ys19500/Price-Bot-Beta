@@ -20,7 +20,7 @@ if st.button("Scrape Data"):
     else:
         with st.spinner("Scraping in progress..."):
             try:
-                response = requests.post(f"{API_BASE_URL}/scrape", json={"url": url_input})
+                response = requests.post(API_BASE_URL, json={"url": url_input})
                 response.raise_for_status()
                 data = response.json()
 
