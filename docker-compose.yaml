@@ -1,24 +1,29 @@
-version: '3.9'
-
 services:
-  backend:
-    build:
-      context: ./backend
-    container_name: backend
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./backend:/app
-    command: uvicorn main:app --host 0.0.0.0 --port 8000
-
   frontend:
-    build:
-      context: ./frontend
-    container_name: frontend
+    build: frontend
     ports:
-      - "8501:8501"
-    volumes:
-      - ./frontend:/app
+      - 8501:8501
     depends_on:
       - backend
-    command: streamlit run streamlit_app.py --server.port=8501
+    volumes:
+      - ./frontend:/Rebel_Assignment
+    restart: always
+    networks:
+      - Rebel_Assignment
+    container_name: frontend
+    command: streamlit run /Rebel_Assignment/streamlit_app.py
+
+  backend:
+    build: backend
+    ports:
+      - 8000:8000
+    volumes:
+      - ./backend:/Rebel_Assignment
+    restart: always
+    networks:
+      - Rebel_Assignment
+    container_name: backend
+
+networks:
+  Rebel_Assignment:
+    driver: bridge
